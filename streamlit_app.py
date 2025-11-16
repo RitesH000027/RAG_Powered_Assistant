@@ -15,7 +15,7 @@ import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.rag_pipeline import RAGPipeline
-from src.llm_integration import create_greeting_prompt
+from src.llm_integration import create_greeting_prompt, GroqLLM
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +76,32 @@ def initialize_rag_pipeline():
         return pipeline
     except Exception as e:
         st.error(f"Failed to initialize RAG pipeline: {str(e)}")
+        return None
+
+
+@st.cache_resource
+def initialize_groq_llm():
+    """
+    Initialize and cache the Groq LLM using Streamlit secrets
+    """
+    try:
+        # Get API key from Streamlit secrets
+        api_key = st.secrets.get("GROQ_API_KEY")
+        if not api_key:
+            st.error("GROQ_API_KEY not found in Streamlit secrets")
+            return None
+        
+        # Create LLM instance
+        llm = GroqLLM(api_key=api_key)
+        
+        if llm.is_available():
+            return llm
+        else:
+            st.error("Groq LLM is not available")
+            return None
+            
+    except Exception as e:
+        st.error(f"Failed to initialize Groq LLM: {str(e)}")
         return None
 
 
@@ -142,6 +168,21 @@ def main():
     if rag_pipeline is None:
         st.error("Failed to initialize the RAG system. Please check your configuration.")
         return
+    
+    # Initialize Groq LLM
+    groq_llm = initialize_groq_llm()
+    
+    # Test Groq LLM section (for demonstration)
+    if groq_llm:
+        st.sidebar.success("✅ Groq LLM Connected")
+        if st.sidebar.button("Test Groq LLM"):
+            with st.sidebar:
+                with st.spinner("Testing Groq LLM..."):
+                    test_response = groq_llm.generate("Hello from Streamlit!")
+                    st.write("**Groq Response:**")
+                    st.write(test_response.content)
+    else:
+        st.sidebar.error("❌ Groq LLM Not Available")
     
     # Sidebar
     with st.sidebar:
